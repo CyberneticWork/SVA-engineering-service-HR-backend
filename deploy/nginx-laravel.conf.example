@@ -1,25 +1,12 @@
-# =============================================================================
-# apihilburn.cyberneticde.site  — Laravel API only (Hilburn HR)
-# =============================================================================
-# CORS allows https://*.cyberneticde.site (see config/cors.php).
-# This vhost must be Laravel public/, not the SPA and not another tenant.
-#
-# Cloudflare DNS (zone cyberneticde.site)
-#   Name:  apihilburn
-#   Type:  A
-#   IPv4:  THE SERVER WHERE Hilburn-backend IS CLONED
-#   Proxy: DNS only (grey cloud) until the vhost below works, then orange.
-#
-# After nginx -t && reload, this must return JSON:
-#   https://apihilburn.cyberneticde.site/index.php/api/public/branding
-# =============================================================================
+# Laravel API — apispmhr.cyberneticde.site
+# Place in /etc/nginx/sites-available/ and symlink to sites-enabled.
+# Document root MUST be the Laravel public/ directory.
 
 server {
-    listen 80;
     listen 443 ssl http2;
-    server_name apihilburn.cyberneticde.site;
+    server_name apispmhr.cyberneticde.site;
 
-    root /var/www/hilburn-backend/public;
+    root /var/www/sohan_hr_system_backend/public;
     index index.php;
 
     charset utf-8;
@@ -33,12 +20,10 @@ server {
 
     error_page 404 /index.php;
 
-    location ~ \.php(/|$) {
-        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+    location ~ \.php$ {
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
-        include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO $fastcgi_path_info;
+        include fastcgi_params;
         fastcgi_hide_header X-Powered-By;
     }
 
