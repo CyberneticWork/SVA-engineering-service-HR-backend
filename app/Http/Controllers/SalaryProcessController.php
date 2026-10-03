@@ -1141,6 +1141,12 @@ public function getEmployeesByMonthAndCompany(Request $request)
         } else {
             $edDeductFromSql = "'bonus'";
         }
+        // deduct_from is only ever stored for salary advances (assignment or deduction master).
+        $edAdvanceChecks = array_filter([
+            $hasEdDeduct ? "NULLIF(ed.deduct_from, '') IS NOT NULL" : null,
+            $hasDdDeduct ? "NULLIF(dd.deduct_from, '') IS NOT NULL" : null,
+        ]);
+        $edIsAdvanceSql = $edAdvanceChecks ? 'IF(' . implode(' OR ', $edAdvanceChecks) . ', 1, 0)' : '0';
 
         $totalDaysInMonth = (int)$lastDay;
 
@@ -1260,7 +1266,7 @@ public function getEmployeesByMonthAndCompany(Request $request)
                 -- Employee-wise deductions (assigned per employee per month)
                 (
                     SELECT COALESCE(CONCAT('[', GROUP_CONCAT(
-                        CONCAT('{\"id\":', dd.id, ',\"name\":\"', REPLACE(IFNULL(dd.deduction_name, ''), '\"', '\\\\\"'), '\",\"amount\":', COALESCE(ed.custom_amount, dd.amount, 0), ',\"is_custom\":1,\"code\":\"', REPLACE(IFNULL(dd.deduction_code, ''), '\"', '\\\\\"'), '\",\"category\":\"', REPLACE(IFNULL(dd.category, ''), '\"', '\\\\\"'), '\",\"deduct_from\":\"', {$edDeductFromSql}, '\"}')
+                        CONCAT('{\"id\":', dd.id, ',\"name\":\"', REPLACE(IFNULL(dd.deduction_name, ''), '\"', '\\\\\"'), '\",\"amount\":', COALESCE(ed.custom_amount, dd.amount, 0), ',\"is_custom\":1,\"code\":\"', REPLACE(IFNULL(dd.deduction_code, ''), '\"', '\\\\\"'), '\",\"category\":\"', REPLACE(IFNULL(dd.category, ''), '\"', '\\\\\"'), '\",\"is_advance\":', {$edIsAdvanceSql}, ',\"deduct_from\":\"', {$edDeductFromSql}, '\"}')
                     SEPARATOR ','), ']'), '[]')
                     FROM employee_deductions ed JOIN deductions dd ON dd.id = ed.deduction_id
                     WHERE ed.employee_id = e.id AND ed.is_active = 1 AND dd.status = 'active'
@@ -1660,7 +1666,11 @@ public function getEmployeesByMonthAndCompany(Request $request)
                 $amount = (float) ($deduction['amount'] ?? 0);
                 if (in_array($cat, ['EPF', 'ETF'], true)) {
                     $epfEtfDeductions += $amount;
-                } elseif (SalaryAdvanceService::isNamedAdvanceDeduction($deduction['name'] ?? '')) {
+                } elseif (
+                    !empty($deduction['is_advance'])
+                    || SalaryAdvanceService::isNamedAdvanceDeduction($deduction['name'] ?? '')
+                    || SalaryAdvanceService::isNamedAdvanceDeduction($deduction['code'] ?? '')
+                ) {
                     if ($advancePayroll['total'] > 0) {
                         continue;
                     }

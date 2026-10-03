@@ -141,9 +141,6 @@ class ReportController extends Controller
                 $salaryAdvanceBonus = $salaryAdvanceFromDeductions;
             }
             $customBonusDeductions = self::sumCustomBonusDeductions($deductions);
-            if ($salaryAdvanceBasic + $salaryAdvanceBonus > 0) {
-                $customBonusDeductions = max(0, round($customBonusDeductions - $salaryAdvanceFromDeductions, 2));
-            }
 
             // Salary for EPF/ETF = (basic − basic NoPay)
             $salaryForEpf = round((float)($breakdown['epf_etf_base'] ?? $adjustedBasic), 2);
@@ -247,6 +244,8 @@ class ReportController extends Controller
                 'staff_fund_ytd_paid' => $staffFundYtdPaid,
                 'staff_fund_balance' => round($staffFundYtdContribution - $staffFundYtdPaid, 2),
                 'salary_advance' => $salaryAdvance,
+                'salary_advance_basic' => round($salaryAdvanceBasic, 2),
+                'salary_advance_bonus' => round($salaryAdvanceBonus, 2),
                 'other_deduction' => $totalOtherDeduction,
                 'stamp_duty' => $stampDuty,
                 'probation_deduction' => $probation,
@@ -295,6 +294,10 @@ class ReportController extends Controller
     {
         $total = 0.0;
         foreach ($deductions as $deduction) {
+            if (!empty($deduction['is_advance']) && in_array('advance', $patterns, true)) {
+                $total += (float)($deduction['amount'] ?? 0);
+                continue;
+            }
             $name = strtolower((string)($deduction['name'] ?? ''));
             $code = strtolower((string)($deduction['code'] ?? ''));
             foreach ($patterns as $pattern) {
@@ -317,7 +320,7 @@ class ReportController extends Controller
             $name = strtolower((string)($deduction['name'] ?? ''));
             $code = strtolower((string)($deduction['code'] ?? ''));
             $cat = strtoupper((string)($deduction['category'] ?? ''));
-            if (in_array($cat, ['EPF', 'ETF'], true)) {
+            if (in_array($cat, ['EPF', 'ETF'], true) || !empty($deduction['is_advance'])) {
                 continue;
             }
             $skip = false;
