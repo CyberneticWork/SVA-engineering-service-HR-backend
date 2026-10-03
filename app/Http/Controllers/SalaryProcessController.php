@@ -1346,6 +1346,14 @@ public function getEmployeesByMonthAndCompany(Request $request)
             $endDate, // No Pay Records
         ];
 
+        // Only staff employed during the selected month: joined on/before month end, not resigned before it starts.
+        $query .= " AND (oa.date_of_joining IS NULL OR oa.date_of_joining <= ?) ";
+        $params[] = date('Y-m-d', strtotime($endDate));
+        if (Schema::hasColumn('organization_assignments', 'date_of_resigning')) {
+            $query .= " AND (oa.date_of_resigning IS NULL OR oa.date_of_resigning >= ?) ";
+            $params[] = date('Y-m-d', strtotime($startDate));
+        }
+
         if ($company_id) {
             $query .= " AND oa.company_id = ? ";
             $params[] = $company_id;
