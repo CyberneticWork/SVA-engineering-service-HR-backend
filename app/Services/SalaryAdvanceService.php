@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PendingPayment;
 use App\Models\SalaryAdvanceRequest;
 use App\Models\employee;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 class SalaryAdvanceService
@@ -69,9 +70,50 @@ class SalaryAdvanceService
         return strtolower(trim($fallback)) === 'basic' ? 'basic' : 'bonus';
     }
 
+    private static bool $columnsEnsured = false;
+
+    /**
+     * Servers that skipped `php artisan migrate` silently dropped the basic/bonus choice,
+     * so add the deduct_from columns on demand. Returns whether salary advances can store it.
+     */
+    public static function ensureDeductFromColumns(): bool
+    {
+        if (!self::$columnsEnsured) {
+            self::$columnsEnsured = true;
+            try {
+                if (Schema::hasTable('salary_advance_requests')) {
+                    $missingFrom = !Schema::hasColumn('salary_advance_requests', 'deduct_from');
+                    $missingSource = !Schema::hasColumn('salary_advance_requests', 'source');
+                    if ($missingFrom || $missingSource) {
+                        Schema::table('salary_advance_requests', function (Blueprint $table) use ($missingFrom, $missingSource) {
+                            if ($missingFrom) {
+                                $table->string('deduct_from', 20)->nullable();
+                            }
+                            if ($missingSource) {
+                                $table->string('source', 20)->nullable();
+                            }
+                        });
+                    }
+                }
+                foreach (['employee_deductions', 'deductions'] as $table) {
+                    if (Schema::hasTable($table) && !Schema::hasColumn($table, 'deduct_from')) {
+                        Schema::table($table, function (Blueprint $t) {
+                            $t->string('deduct_from', 20)->nullable();
+                        });
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return Schema::hasTable('salary_advance_requests')
+            && Schema::hasColumn('salary_advance_requests', 'deduct_from');
+    }
+
     public static function applyHrDeductFrom(SalaryAdvanceRequest $row, ?string $choice = null): void
     {
-        if (!Schema::hasColumn('salary_advance_requests', 'deduct_from')) {
+        if (!self::ensureDeductFromColumns()) {
             return;
         }
         $row->loadMissing('employee.organizationAssignment.company');

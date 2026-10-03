@@ -45,6 +45,7 @@ class AssignSalaryComponentController extends Controller
 
     public function listDeductions(Request $request)
     {
+        SalaryAdvanceService::ensureDeductFromColumns();
         $deductionCols = 'id,deduction_code,deduction_name,deduction_type,amount,company_id';
         if (Schema::hasColumn('deductions', 'deduct_from')) {
             $deductionCols .= ',deduct_from';
@@ -173,6 +174,7 @@ class AssignSalaryComponentController extends Controller
             return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
+        SalaryAdvanceService::ensureDeductFromColumns();
         $deduction = deduction::findOrFail($request->deduction_id);
         $companyId = $request->company_id ?: $deduction->company_id;
         $isAdvance = SalaryAdvanceService::isAdvanceDeduction($deduction);

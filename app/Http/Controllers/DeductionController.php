@@ -14,12 +14,14 @@ class DeductionController extends Controller
 {
     public function index()
     {
+        SalaryAdvanceService::ensureDeductFromColumns();
         $deductions = deduction::with('department', 'company')->get();
         return response()->json($deductions);
     }
 
     public function store(Request $request)
     {
+        SalaryAdvanceService::ensureDeductFromColumns();
         //validate the request data
         $data = $request->validate([
             'department_id' => 'nullable|exists:departments,id',
@@ -79,6 +81,7 @@ class DeductionController extends Controller
             return response()->json(['message' => 'Deduction not found'], 404);
         }
 
+        SalaryAdvanceService::ensureDeductFromColumns();
         $data = $validator->validated();
         $data['startDate'] = null;
         $data['endDate'] = null;

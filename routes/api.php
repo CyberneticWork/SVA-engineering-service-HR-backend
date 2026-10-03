@@ -726,6 +726,7 @@ Route::middleware('auth.token')->group(function () {
     Route::get('/hr/advance-requests', [App\Http\Controllers\EmployeePortalController::class, 'listAdvances']);
     Route::post('/hr/advance-requests', [App\Http\Controllers\EmployeePortalController::class, 'hrStoreAdvance']);
     Route::post('/hr/advance-requests/{id}/review', [App\Http\Controllers\EmployeePortalController::class, 'reviewAdvance']);
+    Route::post('/hr/advance-requests/{id}/deduct-from', [App\Http\Controllers\EmployeePortalController::class, 'updateAdvanceDeductFrom']);
     Route::get('/hr/weekly-offs', [App\Http\Controllers\WeeklyOffController::class, 'hrIndex']);
     Route::post('/hr/weekly-offs', [App\Http\Controllers\WeeklyOffController::class, 'hrStore']);
     Route::post('/hr/weekly-offs/{id}/review', [App\Http\Controllers\WeeklyOffController::class, 'hrReview']);

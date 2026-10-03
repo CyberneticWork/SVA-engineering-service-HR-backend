@@ -563,6 +563,7 @@ class EmployeePortalController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        SalaryAdvanceService::ensureDeductFromColumns();
         $q = SalaryAdvanceRequest::with('employee.organizationAssignment.company')
             ->orderByDesc('id');
 
@@ -599,6 +600,10 @@ class EmployeePortalController extends Controller
         ]);
         if ($validator->fails()) {
             return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        if (!SalaryAdvanceService::ensureDeductFromColumns()) {
+            return $this->deductFromUnavailable();
         }
 
         $emp = employee::with('organizationAssignment.company', 'compensation')->findOrFail((int) $request->employee_id);
@@ -669,6 +674,10 @@ class EmployeePortalController extends Controller
             return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
+        if ($request->action === 'APPROVE' && !SalaryAdvanceService::ensureDeductFromColumns()) {
+            return $this->deductFromUnavailable();
+        }
+
         $row = SalaryAdvanceRequest::findOrFail($id);
         $row->load('employee.organizationAssignment');
         if ($row->status !== 'PENDING') {
@@ -699,6 +708,43 @@ class EmployeePortalController extends Controller
         }
 
         return response()->json(['message' => 'Advance request updated', 'data' => $row]);
+    }
+
+    public function updateAdvanceDeductFrom(Request $request, $id)
+    {
+        $user = $request->user();
+        if ($user->role === 'employee') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'deduct_from' => 'required|in:basic,bonus',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+        if (!SalaryAdvanceService::ensureDeductFromColumns()) {
+            return $this->deductFromUnavailable();
+        }
+
+        $row = SalaryAdvanceRequest::findOrFail($id);
+        if ($row->status !== 'APPROVED') {
+            return response()->json(['message' => 'Only approved advances can be changed here.'], 422);
+        }
+        SalaryAdvanceService::applyHrDeductFrom($row, $request->input('deduct_from'));
+        $row->save();
+
+        return response()->json([
+            'message' => 'Payroll deduct source updated. Re-process salary if this month was already processed.',
+            'data' => $row,
+        ]);
+    }
+
+    private function deductFromUnavailable()
+    {
+        return response()->json([
+            'message' => 'Cannot save basic/bonus choice: the server database is not updated. Run "php artisan migrate" on the server.',
+        ], 500);
     }
 
     public function changePassword(Request $request)
