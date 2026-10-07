@@ -4,7 +4,7 @@
 
 server {
     listen 443 ssl http2;
-    server_name apispmhr.cyberneticde.site;
+    server_name apisvahr.cyberneticde.site;
 
     root /var/www/sohan_hr_system_backend/public;
     index index.php;
